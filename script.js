@@ -455,7 +455,7 @@ function triggerPlayerAction(type) {
     game.player.animTimer = 0;
     playSound(ASSET_PATHS.playerShootSfx);
     game.projectiles.push({
-      x: game.player.x + game.player.facing * 34,
+      x: game.player.x + (game.player.facing > 0 ? 34 : -5),
       y: game.player.y + 28,
       w: 25,
       h: 18,
@@ -1244,7 +1244,7 @@ function handleKeyDown(event) {
   if (event.key === "ArrowRight" || key === "d") input.right = true;
   if (event.key === "ArrowUp" || key === "w") input.up = true;
   if (event.key === "ArrowDown" || key === "s") input.down = true;
-  const actionByKey = { "1": "jump", "2": "punch", "3": "kick", "4": "shoot" };
+  const actionByKey = { 1: "jump", 2: "punch", 3: "kick", 4: "shoot" };
   const action = actionByKey[key];
   if (action && !input.actionKeys.has(action)) {
     input.actionKeys.add(action);
@@ -1255,7 +1255,7 @@ function handleKeyDown(event) {
 
 function handleKeyUp(event) {
   const key = event.key.toLowerCase();
-  const actionByKey = { "1": "jump", "2": "punch", "3": "kick", "4": "shoot" };
+  const actionByKey = { 1: "jump", 2: "punch", 3: "kick", 4: "shoot" };
   const action = actionByKey[key];
   if (action) input.actionKeys.delete(action);
   if (event.key === "ArrowLeft" || key === "a") input.left = false;
