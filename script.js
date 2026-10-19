@@ -121,6 +121,15 @@ const ASSET_PATHS = {
     "assets/char/enemy/enemy1_death_004.png",
     "assets/char/enemy/enemy1_death_005.png",
   ],
+  playerSpeech: [
+    "assets/char/speech/speech_0.png",
+    "assets/char/speech/speech_1.png",
+    "assets/char/speech/speech_2.png",
+    "assets/char/speech/speech_3.png",
+    "assets/char/speech/speech_4.png",
+    "assets/char/speech/speech_5.png",
+    "assets/char/speech/speech_6.png",
+  ],
   fxHit: [
     "assets/fx/fx_hit/fx_hit_000.png",
     "assets/fx/fx_hit/fx_hit_001.png",
@@ -350,6 +359,8 @@ function resetGameState() {
     animFrame: 0,
     animTimer: 0,
     hurtFlash: 0,
+    speechIndex: null,
+    speechTimer: 0,
     dead: false,
   };
 }
@@ -560,11 +571,16 @@ function applyPlayerHit() {
       spawnHitEffect(enemy.x, enemy.y + enemy.height / 2);
       if (enemy.health <= 0) {
         enemy.dead = true;
-        enemy.deathTimer = ASSET_PATHS.enemyDeath.length * ENEMY_DEATH_FRAME_DURATION;
+        enemy.deathTimer =
+          ASSET_PATHS.enemyDeath.length * ENEMY_DEATH_FRAME_DURATION;
         enemy.animation = "dead";
         enemy.animFrame = 0;
         enemy.animTimer = 0;
         game.score += 1;
+        game.player.speechIndex = Math.floor(
+          Math.random() * ASSET_PATHS.playerSpeech.length,
+        );
+        game.player.speechTimer = 3;
         playSound(ASSET_PATHS.enemyDeathSfx);
       } else {
         enemy.animation = "hit";
@@ -587,6 +603,8 @@ function updatePlayer(dt) {
   const player = game.player;
   player.cooldown = Math.max(0, player.cooldown - dt);
   player.hurtFlash = Math.max(0, player.hurtFlash - dt);
+  player.speechTimer = Math.max(0, player.speechTimer - dt);
+  if (player.speechTimer === 0) player.speechIndex = null;
 
   const dx = (input.right ? 1 : 0) - (input.left ? 1 : 0) + input.joystickX;
   const dy = (input.down ? 1 : 0) - (input.up ? 1 : 0) + input.joystickY;
@@ -642,11 +660,17 @@ function updatePlayer(dt) {
 
   if (player.animation === "hit") {
     player.animTimer += dt;
-    while (player.animTimer >= 0.08 && player.animFrame < ASSET_PATHS.playerHit.length - 1) {
+    while (
+      player.animTimer >= 0.08 &&
+      player.animFrame < ASSET_PATHS.playerHit.length - 1
+    ) {
       player.animTimer -= 0.08;
       player.animFrame += 1;
     }
-    if (player.animFrame === ASSET_PATHS.playerHit.length - 1 && player.animTimer >= 0.08) {
+    if (
+      player.animFrame === ASSET_PATHS.playerHit.length - 1 &&
+      player.animTimer >= 0.08
+    ) {
       player.animation = len > 0.2 ? "walk" : "static";
       player.animFrame = 0;
       player.animTimer = 0;
@@ -786,6 +810,10 @@ function updateProjectiles(dt) {
           enemy.animFrame = 0;
           enemy.animTimer = 0;
           game.score += 1;
+          game.player.speechIndex = Math.floor(
+            Math.random() * ASSET_PATHS.playerSpeech.length,
+          );
+          game.player.speechTimer = 3;
           playSound(ASSET_PATHS.enemyDeathSfx);
         } else {
           enemy.animation = "hit";
@@ -960,6 +988,18 @@ function drawWorld() {
   if (game.player.hurtFlash > 0) ctx.globalAlpha = 0.6;
   ctx.drawImage(playerImg, 0, 0, game.player.width, game.player.height);
   ctx.restore();
+
+  if (game.player.speechIndex !== null && game.player.speechTimer > 0) {
+    const speechPath = ASSET_PATHS.playerSpeech[game.player.speechIndex];
+    const speechImg = assets.images[speechPath];
+    if (speechImg) {
+      ctx.drawImage(
+        speechImg,
+        px + (game.player.width - speechImg.width) / 2 + 32,
+        py - speechImg.height + 20,
+      );
+    }
+  }
 }
 
 function drawHUD() {
