@@ -11,7 +11,6 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const portraitOverlay = document.getElementById("portraitOverlay");
 const gameShell = document.getElementById("game-shell");
-let autoFullscreenAttempted = false;
 
 const ASSET_PATHS = {
   loadingIcons: [
@@ -283,11 +282,6 @@ function setState(nextState) {
   const music = assets.sounds[ASSET_PATHS.music];
 
   if (nextState === "start") {
-    if (!autoFullscreenAttempted) {
-      autoFullscreenAttempted = true;
-      if (isMobileDevice()) toggleFullscreen();
-    }
-
     if (music) {
       music.loop = true;
       music.volume = game.muted ? 0 : 0.8;
@@ -1328,6 +1322,7 @@ function handlePointerDown(event) {
   if (game.state === "loading") return;
 
   if (game.state === "start" && rectContains(point.x, point.y, BUTTONS.start)) {
+    if (isMobileDevice()) toggleFullscreen();
     startNewGame();
     return;
   }
