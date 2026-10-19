@@ -158,6 +158,7 @@ const game = {
   overReason: null,
   joystickPointerId: null,
   pointerPositions: new Map(),
+  actionPointerIds: new Map(),
   audioUnlocked: false,
   gameOverDelay: 0,
   gameOverTriggered: false,
@@ -170,6 +171,7 @@ const input = {
   down: false,
   joystickX: 0,
   joystickY: 0,
+  actionKeys: new Set(),
 };
 
 const assets = { images: {}, sounds: {} };
@@ -978,14 +980,29 @@ function drawHUD() {
   }
 
   const actions = [
-    { src: ASSET_PATHS.actionJump, rect: BUTTONS.jump },
-    { src: ASSET_PATHS.actionPunch, rect: BUTTONS.punch },
-    { src: ASSET_PATHS.actionKick, rect: BUTTONS.kick },
-    { src: ASSET_PATHS.actionShoot, rect: BUTTONS.shoot },
+    { name: "jump", src: ASSET_PATHS.actionJump, rect: BUTTONS.jump },
+    { name: "punch", src: ASSET_PATHS.actionPunch, rect: BUTTONS.punch },
+    { name: "kick", src: ASSET_PATHS.actionKick, rect: BUTTONS.kick },
+    { name: "shoot", src: ASSET_PATHS.actionShoot, rect: BUTTONS.shoot },
   ];
-  actions.forEach(({ src, rect }) => {
+  actions.forEach(({ name, src, rect }) => {
     const img = assets.images[src];
-    if (img) ctx.drawImage(img, rect.x, rect.y, rect.w, rect.h);
+    if (!img) return;
+    const pressed =
+      input.actionKeys.has(name) ||
+      Array.from(game.actionPointerIds.values()).includes(name);
+    const scale = pressed ? 0.9 : 1;
+    const drawWidth = rect.w * scale;
+    const drawHeight = rect.h * scale;
+    const centerX = rect.x + rect.w / 2;
+    const centerY = rect.y + rect.h / 2;
+    ctx.drawImage(
+      img,
+      centerX - drawWidth / 2,
+      centerY - drawHeight / 2,
+      drawWidth,
+      drawHeight,
+    );
   });
 
   if (game.state === "paused") {
@@ -1071,10 +1088,11 @@ function drawGameOver() {
 }
 
 function render() {
+  ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
   if (isPortrait()) {
-    ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     const img = assets.images[ASSET_PATHS.rotatePhone];
     if (img) {
       ctx.drawImage(img, GAME_WIDTH / 2 - 150, GAME_HEIGHT / 2 - 150, 300, 300);
@@ -1157,14 +1175,19 @@ function handlePointerDown(event) {
     }
 
     if (game.state === "playing") {
-      if (rectContains(point.x, point.y, BUTTONS.jump))
-        triggerPlayerAction("jump");
-      else if (rectContains(point.x, point.y, BUTTONS.punch))
-        triggerPlayerAction("punch");
-      else if (rectContains(point.x, point.y, BUTTONS.kick))
-        triggerPlayerAction("kick");
-      else if (rectContains(point.x, point.y, BUTTONS.shoot))
-        triggerPlayerAction("shoot");
+      const actions = [
+        ["jump", BUTTONS.jump],
+        ["punch", BUTTONS.punch],
+        ["kick", BUTTONS.kick],
+        ["shoot", BUTTONS.shoot],
+      ];
+      for (const [action, rect] of actions) {
+        if (rectContains(point.x, point.y, rect)) {
+          game.actionPointerIds.set(event.pointerId, action);
+          triggerPlayerAction(action);
+          return;
+        }
+      }
     }
   }
 }
@@ -1186,6 +1209,7 @@ function handlePointerMove(event) {
 
 function handlePointerUp(event) {
   game.pointerPositions.delete(event.pointerId);
+  game.actionPointerIds.delete(event.pointerId);
   if (event.pointerId === game.joystickPointerId) {
     input.joystickX = 0;
     input.joystickY = 0;
@@ -1220,15 +1244,20 @@ function handleKeyDown(event) {
   if (event.key === "ArrowRight" || key === "d") input.right = true;
   if (event.key === "ArrowUp" || key === "w") input.up = true;
   if (event.key === "ArrowDown" || key === "s") input.down = true;
-  if (key === "1") triggerPlayerAction("jump");
-  if (key === "2") triggerPlayerAction("punch");
-  if (key === "3") triggerPlayerAction("kick");
-  if (key === "4") triggerPlayerAction("shoot");
+  const actionByKey = { "1": "jump", "2": "punch", "3": "kick", "4": "shoot" };
+  const action = actionByKey[key];
+  if (action && !input.actionKeys.has(action)) {
+    input.actionKeys.add(action);
+    triggerPlayerAction(action);
+  }
   if (key === "m") toggleMute();
 }
 
 function handleKeyUp(event) {
   const key = event.key.toLowerCase();
+  const actionByKey = { "1": "jump", "2": "punch", "3": "kick", "4": "shoot" };
+  const action = actionByKey[key];
+  if (action) input.actionKeys.delete(action);
   if (event.key === "ArrowLeft" || key === "a") input.left = false;
   if (event.key === "ArrowRight" || key === "d") input.right = false;
   if (event.key === "ArrowUp" || key === "w") input.up = false;
