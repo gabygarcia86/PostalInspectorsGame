@@ -4,6 +4,7 @@ const WORLD_WIDTH = 2560;
 const PLAYER_GROUND_Y = 570;
 const PLAYER_MIN_Y = 300;
 const PLAYER_MAX_Y = 640;
+const ENEMY_DEATH_FRAME_DURATION = 0.12;
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -526,14 +527,15 @@ function applyPlayerHit() {
     const dx = Math.abs(enemy.x - game.player.x);
     const dy = Math.abs(enemy.y - game.player.y);
     if (dx < range && dy < 90) {
-      const damage = attack === "punch" ? 2 : attack === "kick" ? 3 : 1;
+      const damage = attack === "punch" ? 1 : attack === "kick" ? 2 : 0;
       enemy.health -= damage;
       enemy.hurtFlash = 0.2;
       if (enemy.health <= 0) {
         enemy.dead = true;
-        enemy.deathTimer = 0.9;
+        enemy.deathTimer = ASSET_PATHS.enemyDeath.length * ENEMY_DEATH_FRAME_DURATION;
         enemy.animation = "dead";
         enemy.animFrame = 0;
+        enemy.animTimer = 0;
         game.score += 1;
         playSound(ASSET_PATHS.enemyDeathSfx);
       } else {
@@ -644,6 +646,14 @@ function updateEnemies(dt) {
     const enemy = game.enemies[i];
     if (enemy.dead) {
       enemy.deathTimer -= dt;
+      enemy.animTimer += dt;
+      while (
+        enemy.animTimer >= ENEMY_DEATH_FRAME_DURATION &&
+        enemy.animFrame < ASSET_PATHS.enemyDeath.length - 1
+      ) {
+        enemy.animTimer -= ENEMY_DEATH_FRAME_DURATION;
+        enemy.animFrame += 1;
+      }
       if (enemy.deathTimer <= 0) {
         game.enemies.splice(i, 1);
       }
@@ -687,12 +697,6 @@ function updateEnemies(dt) {
         enemy.animTimer = 0;
         enemy.animFrame = (enemy.animFrame + 1) % ASSET_PATHS.enemyKick.length;
       }
-    } else if (enemy.animation === "dead") {
-      enemy.animTimer += dt;
-      if (enemy.animTimer > 0.08) {
-        enemy.animTimer = 0;
-        enemy.animFrame = (enemy.animFrame + 1) % ASSET_PATHS.enemyDeath.length;
-      }
     } else {
       enemy.animTimer += dt;
       if (enemy.animTimer > 0.08) {
@@ -732,12 +736,14 @@ function updateProjectiles(dt) {
       const hitX = Math.abs(p.x - enemy.x) < 30;
       const hitY = Math.abs(p.y - enemy.y) < 40;
       if (hitX && hitY) {
-        enemy.health -= 1;
+        enemy.health -= 4;
         if (enemy.health <= 0) {
           enemy.dead = true;
-          enemy.deathTimer = 0.9;
+          enemy.deathTimer =
+            ASSET_PATHS.enemyDeath.length * ENEMY_DEATH_FRAME_DURATION;
           enemy.animation = "dead";
           enemy.animFrame = 0;
+          enemy.animTimer = 0;
           game.score += 1;
           playSound(ASSET_PATHS.enemyDeathSfx);
         } else {
