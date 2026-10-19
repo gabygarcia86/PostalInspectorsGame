@@ -5,6 +5,7 @@ const PLAYER_GROUND_Y = 570;
 const PLAYER_MIN_Y = 300;
 const PLAYER_MAX_Y = 640;
 const ENEMY_DEATH_FRAME_DURATION = 0.12;
+const HIT_EFFECT_FRAME_DURATION = 0.07;
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -48,6 +49,15 @@ const ASSET_PATHS = {
     "assets/char/player/player1_walk_004.png",
     "assets/char/player/player1_walk_005.png",
     "assets/char/player/player1_walk_006.png",
+  ],
+  playerHit: [
+    "assets/char/player/player1_hit_000.png",
+    "assets/char/player/player1_hit_001.png",
+    "assets/char/player/player1_hit_002.png",
+    "assets/char/player/player1_hit_003.png",
+    "assets/char/player/player1_hit_004.png",
+    "assets/char/player/player1_hit_005.png",
+    "assets/char/player/player1_hit_006.png",
   ],
   playerPunch: [
     "assets/char/player/player1_punch_000.png",
@@ -354,6 +364,7 @@ function getPlayerFrame() {
   const player = game.player;
   let frames = [ASSET_PATHS.playerStatic];
   if (player.animation === "walk") frames = ASSET_PATHS.playerWalk;
+  else if (player.animation === "hit") frames = ASSET_PATHS.playerHit;
   else if (player.animation === "punch") frames = ASSET_PATHS.playerPunch;
   else if (player.animation === "kick") frames = ASSET_PATHS.playerKick;
   else if (player.animation === "jump") frames = ASSET_PATHS.playerJump;
@@ -405,7 +416,12 @@ function spawnEnemy() {
 }
 
 function triggerPlayerAction(type) {
-  if (game.state !== "playing" || game.player.dead || game.player.cooldown > 0)
+  if (
+    game.state !== "playing" ||
+    game.player.dead ||
+    game.player.cooldown > 0 ||
+    game.player.animation === "hit"
+  )
     return;
 
   if (type === "jump") {
@@ -471,6 +487,12 @@ function damagePlayer(amount) {
   if (game.player.dead) return;
   game.player.health = clamp(game.player.health - amount, 0, 100);
   game.player.hurtFlash = 0.25;
+  game.player.attackType = null;
+  game.player.jumpTime = 0;
+  game.player.jumpHeight = 0;
+  game.player.animation = "hit";
+  game.player.animFrame = 0;
+  game.player.animTimer = 0;
   playSound(ASSET_PATHS.fxHitSfx);
   if (game.player.health <= 0) {
     game.player.dead = true;
@@ -478,6 +500,11 @@ function damagePlayer(amount) {
     playSound(ASSET_PATHS.playerDeathSfx);
     setState("gameOverDead");
   }
+}
+
+function spawnHitEffect(x, y) {
+  game.effects.push({ x, y, frame: 0, frameTimer: 0 });
+  playSound(ASSET_PATHS.fxHitSfx);
 }
 
 function handleEnemyAttack(enemy) {
@@ -530,6 +557,7 @@ function applyPlayerHit() {
       const damage = attack === "punch" ? 1 : attack === "kick" ? 2 : 0;
       enemy.health -= damage;
       enemy.hurtFlash = 0.2;
+      spawnHitEffect(enemy.x, enemy.y + enemy.height / 2);
       if (enemy.health <= 0) {
         enemy.dead = true;
         enemy.deathTimer = ASSET_PATHS.enemyDeath.length * ENEMY_DEATH_FRAME_DURATION;
@@ -541,7 +569,6 @@ function applyPlayerHit() {
       } else {
         enemy.animation = "hit";
         enemy.animFrame = 0;
-        playSound(ASSET_PATHS.fxHitSfx);
       }
       hitMade = true;
       if (attack !== "shoot") break;
@@ -574,6 +601,7 @@ function updatePlayer(dt) {
     player.y = clamp(player.y, PLAYER_MIN_Y, PLAYER_MAX_Y);
     if (dx !== 0) player.facing = dx > 0 ? 1 : -1;
     if (
+      player.animation !== "hit" &&
       player.animation !== "punch" &&
       player.animation !== "kick" &&
       player.animation !== "jump"
@@ -581,6 +609,7 @@ function updatePlayer(dt) {
       player.animation = "walk";
     }
   } else if (
+    player.animation !== "hit" &&
     player.animation !== "punch" &&
     player.animation !== "kick" &&
     player.animation !== "jump"
@@ -588,7 +617,7 @@ function updatePlayer(dt) {
     player.animation = "static";
   }
 
-  if (player.jumpTime > 0) {
+  if (player.jumpTime > 0 && player.animation !== "hit") {
     player.jumpTime = Math.max(0, player.jumpTime - dt);
     const t = 1 - player.jumpTime / 0.7;
     player.jumpHeight = Math.sin(t * Math.PI) * 110;
@@ -598,7 +627,7 @@ function updatePlayer(dt) {
     }
   }
 
-  if (player.attackType) {
+  if (player.attackType && player.animation !== "hit") {
     player.attackTimer -= dt;
     const hitThreshold =
       player.attackDuration > 0 ? player.attackDuration * 0.55 : 0.12;
@@ -611,7 +640,18 @@ function updatePlayer(dt) {
     }
   }
 
-  if (player.animation === "walk") {
+  if (player.animation === "hit") {
+    player.animTimer += dt;
+    while (player.animTimer >= 0.08 && player.animFrame < ASSET_PATHS.playerHit.length - 1) {
+      player.animTimer -= 0.08;
+      player.animFrame += 1;
+    }
+    if (player.animFrame === ASSET_PATHS.playerHit.length - 1 && player.animTimer >= 0.08) {
+      player.animation = len > 0.2 ? "walk" : "static";
+      player.animFrame = 0;
+      player.animTimer = 0;
+    }
+  } else if (player.animation === "walk") {
     player.animTimer += dt;
     if (player.animTimer > 0.08) {
       player.animTimer = 0;
@@ -737,6 +777,7 @@ function updateProjectiles(dt) {
       const hitY = Math.abs(p.y - enemy.y) < 40;
       if (hitX && hitY) {
         enemy.health -= 4;
+        spawnHitEffect(enemy.x, enemy.y + enemy.height / 2);
         if (enemy.health <= 0) {
           enemy.dead = true;
           enemy.deathTimer =
@@ -749,11 +790,24 @@ function updateProjectiles(dt) {
         } else {
           enemy.animation = "hit";
           enemy.animFrame = 0;
-          playSound(ASSET_PATHS.fxHitSfx);
         }
         game.projectiles.splice(i, 1);
         break;
       }
+    }
+  }
+}
+
+function updateEffects(dt) {
+  for (let i = game.effects.length - 1; i >= 0; i -= 1) {
+    const effect = game.effects[i];
+    effect.frameTimer += dt;
+    while (effect.frameTimer >= HIT_EFFECT_FRAME_DURATION) {
+      effect.frameTimer -= HIT_EFFECT_FRAME_DURATION;
+      effect.frame += 1;
+    }
+    if (effect.frame >= ASSET_PATHS.fxHit.length) {
+      game.effects.splice(i, 1);
     }
   }
 }
@@ -779,6 +833,7 @@ function update(dt) {
   updatePlayer(dt);
   updateEnemies(dt);
   updateProjectiles(dt);
+  updateEffects(dt);
 
   const interval = game.timer > 120 ? 9 : game.timer > 60 ? 7 : 5;
   game.spawnTimer -= dt;
@@ -856,6 +911,22 @@ function drawWorld() {
     if (enemy.hurtFlash > 0) ctx.globalAlpha = 0.7;
     ctx.drawImage(img, 0, 0, enemy.width, enemy.height);
     ctx.restore();
+  }
+
+  for (const effect of game.effects) {
+    const framePath = ASSET_PATHS.fxHit[effect.frame];
+    const img = assets.images[framePath];
+    if (img) {
+      const width = img.width;
+      const height = img.height;
+      ctx.drawImage(
+        img,
+        effect.x - game.cameraX - width / 2,
+        effect.y - height / 2,
+        width,
+        height,
+      );
+    }
   }
 
   for (const projectile of game.projectiles) {
