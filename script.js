@@ -574,7 +574,7 @@ function applyPlayerHit() {
     const dx = Math.abs(enemy.x - game.player.x);
     const dy = Math.abs(enemy.y - game.player.y);
     if (dx < range && dy < 90) {
-      const damage = attack === "punch" ? 1 : attack === "kick" ? 2 : 0;
+      const damage = attack === "punch" ? 4 : attack === "kick" ? 6 : 0;
       enemy.health -= damage;
       enemy.hurtFlash = 0.2;
       spawnHitEffect(enemy.x, enemy.y + enemy.height / 2);
@@ -809,7 +809,7 @@ function updateProjectiles(dt) {
       const hitX = Math.abs(p.x - enemy.x) < 30;
       const hitY = Math.abs(p.y - enemy.y) < 40;
       if (hitX && hitY) {
-        enemy.health -= 4;
+        enemy.health -= 3.35;
         spawnHitEffect(enemy.x, enemy.y + enemy.height / 2);
         if (enemy.health <= 0) {
           enemy.dead = true;
