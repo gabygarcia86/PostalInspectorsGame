@@ -376,6 +376,8 @@ function resetGameState() {
 
 function startNewGame() {
   resetGameState();
+  spawnEnemy(true);
+  game.spawnTimer = 9;
   setState("playing");
   playSound(ASSET_PATHS.gameStart);
 }
@@ -402,7 +404,7 @@ function getEnemyFrame(enemy) {
   return assets.images[frames[idx]] || assets.images[ASSET_PATHS.enemyStatic];
 }
 
-function spawnEnemy() {
+function spawnEnemy(nearPlayer = false) {
   if (game.enemies.length >= 5) return;
   const fromLeft = Math.random() < 0.5;
   const enemy = {
@@ -427,9 +429,18 @@ function spawnEnemy() {
   };
 
   if (game.player) {
-    const playerSide = game.player.x < WORLD_WIDTH / 2 ? 1 : -1;
-    enemy.x = playerSide > 0 ? WORLD_WIDTH + 34 : -34;
-    enemy.facing = playerSide > 0 ? -1 : 1;
+    if (nearPlayer) {
+      enemy.x = clamp(
+        game.player.x + (fromLeft ? -1 : 1) * GAME_WIDTH * 0.4,
+        enemy.width / 2,
+        WORLD_WIDTH - enemy.width / 2,
+      );
+      enemy.facing = fromLeft ? 1 : -1;
+    } else {
+      const playerSide = game.player.x < WORLD_WIDTH / 2 ? 1 : -1;
+      enemy.x = playerSide > 0 ? WORLD_WIDTH + 34 : -34;
+      enemy.facing = playerSide > 0 ? -1 : 1;
+    }
   }
 
   game.enemies.push(enemy);
@@ -624,7 +635,7 @@ function updatePlayer(dt) {
     const ny = dy / Math.max(len, 1);
     player.x += nx * player.speed * dt;
     player.y += ny * player.speed * dt;
-    player.x = clamp(player.x, 0, WORLD_WIDTH);
+    player.x = clamp(player.x, player.width / 2, WORLD_WIDTH - player.width / 2);
     player.y = clamp(player.y, PLAYER_MIN_Y, PLAYER_MAX_Y);
     if (dx !== 0) player.facing = dx > 0 ? 1 : -1;
     if (
@@ -1151,7 +1162,7 @@ function drawBackgroundLayer() {
 
   if (!bg0 && !bg1) return;
 
-  const parallaxX = -game.cameraX * 0.55;
+  const parallaxX = -game.cameraX;
   const bg0Width = bg0 ? bg0.width || GAME_WIDTH : GAME_WIDTH;
   const bg0Height = bg0 ? bg0.height || GAME_HEIGHT : GAME_HEIGHT;
   const bg1Width = bg1 ? bg1.width || GAME_WIDTH : GAME_WIDTH;
