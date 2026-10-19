@@ -11,6 +11,7 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const portraitOverlay = document.getElementById("portraitOverlay");
 const gameShell = document.getElementById("game-shell");
+let autoFullscreenAttempted = false;
 
 const ASSET_PATHS = {
   loadingIcons: [
@@ -211,6 +212,14 @@ function isPortrait() {
   return window.innerHeight > window.innerWidth;
 }
 
+function isMobileDevice() {
+  const mobileUserAgent =
+    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  return navigator.userAgentData?.mobile ?? mobileUserAgent;
+}
+
 function makeImage(src) {
   const img = new Image();
   img.decoding = "async";
@@ -274,6 +283,11 @@ function setState(nextState) {
   const music = assets.sounds[ASSET_PATHS.music];
 
   if (nextState === "start") {
+    if (!autoFullscreenAttempted) {
+      autoFullscreenAttempted = true;
+      if (isMobileDevice()) toggleFullscreen();
+    }
+
     if (music) {
       music.loop = true;
       music.volume = game.muted ? 0 : 0.8;
