@@ -10,6 +10,7 @@ const HIT_EFFECT_FRAME_DURATION = 0.07;
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const portraitOverlay = document.getElementById("portraitOverlay");
+const gameShell = document.getElementById("game-shell");
 
 const ASSET_PATHS = {
   loadingIcons: [
@@ -1242,6 +1243,67 @@ function pointerToCanvas(event) {
   };
 }
 
+function getFullscreenElement() {
+  return (
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.webkitCurrentFullScreenElement ||
+    null
+  );
+}
+
+function toggleFullscreen() {
+  if (getFullscreenElement()) {
+    const exitFullscreen =
+      document.exitFullscreen ||
+      document.webkitExitFullscreen ||
+      document.webkitCancelFullScreen;
+    if (exitFullscreen) {
+      const result = exitFullscreen.call(document);
+      if (result && typeof result.catch === "function") {
+        result.catch((error) =>
+          console.warn("Unable to exit fullscreen mode:", error),
+        );
+      }
+    } else {
+      console.warn("This browser cannot exit fullscreen mode.");
+    }
+    return;
+  }
+
+  const requestFullscreen =
+    gameShell.requestFullscreen ||
+    gameShell.webkitRequestFullscreen ||
+    gameShell.webkitRequestFullScreen;
+
+  if (!requestFullscreen) {
+    gameShell.classList.toggle("is-fullscreen");
+    resizeCanvas();
+    return;
+  }
+
+  try {
+    const result = requestFullscreen.call(gameShell);
+    if (result && typeof result.catch === "function") {
+      result.catch((error) => {
+        console.warn(
+          "Native fullscreen is unavailable; using the fullscreen layout instead:",
+          error,
+        );
+        gameShell.classList.add("is-fullscreen");
+        resizeCanvas();
+      });
+    }
+  } catch (error) {
+    console.warn(
+      "Native fullscreen is unavailable; using the fullscreen layout instead:",
+      error,
+    );
+    gameShell.classList.add("is-fullscreen");
+    resizeCanvas();
+  }
+}
+
 function handlePointerDown(event) {
   event.preventDefault();
   const point = pointerToCanvas(event);
@@ -1285,8 +1347,12 @@ function handlePointerDown(event) {
     }
 
     if (rectContains(point.x, point.y, BUTTONS.fullscreen)) {
-      if (document.fullscreenElement) document.exitFullscreen?.();
-      else document.documentElement.requestFullscreen?.().catch(() => {});
+      if (gameShell.classList.contains("is-fullscreen")) {
+        gameShell.classList.remove("is-fullscreen");
+        resizeCanvas();
+      } else {
+        toggleFullscreen();
+      }
       playSound(ASSET_PATHS.btnClick);
       return;
     }
@@ -1416,6 +1482,8 @@ function boot() {
 
   window.addEventListener("resize", resizeCanvas);
   window.addEventListener("orientationchange", resizeCanvas);
+  document.addEventListener("fullscreenchange", resizeCanvas);
+  document.addEventListener("webkitfullscreenchange", resizeCanvas);
   window.addEventListener("keydown", handleKeyDown);
   window.addEventListener("keyup", handleKeyUp);
   canvas.addEventListener("pointerdown", handlePointerDown, { passive: false });
